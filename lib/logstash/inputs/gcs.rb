@@ -307,7 +307,7 @@ class LogStash::Inputs::GCS < LogStash::Inputs::Base
 
       def write(since = nil)
         since = Time.now() if since.nil?
-        ::File.open(@sincedb_path, 'w') { |file| file.write(since.to_s) }
+        ::File.open(@sincedb_path, 'w') { |file| file.write(since.strftime("%Y-%m-%d %H:%M:%S.%L %Z")) }
       end
     end
   end
