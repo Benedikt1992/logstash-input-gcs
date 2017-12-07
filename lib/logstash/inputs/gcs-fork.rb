@@ -1,5 +1,5 @@
 # encoding: utf-8
-require 'gcloud'
+require 'google/cloud/storage'
 
 require 'faraday'
 module Faraday
@@ -23,8 +23,8 @@ require "stud/temporary"
 #
 # Each line from each file generates an event.
 # Files ending in `.gz` are handled as gzip'ed files.
-class LogStash::Inputs::GCS < LogStash::Inputs::Base
-  config_name "gcs"
+class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
+  config_name "gcs-fork"
 
   default :codec, "plain"
 
@@ -77,7 +77,10 @@ class LogStash::Inputs::GCS < LogStash::Inputs::Base
 
     @logger.info("Registering GCS input", :bucket => @bucket, :project => @project, :keyfile => @keyfile)
 
-    @gcs = Gcloud.new(project=@project, keyfile=@keyfile).storage 
+    @gcs = Google::Cloud::Storage.new(
+      project_id: @project,
+      credentials: @keyfile
+    )
     @gcsbucket = @gcs.bucket @bucket
 
     unless @backup_to_bucket.nil?

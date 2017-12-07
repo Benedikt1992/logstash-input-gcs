@@ -1,11 +1,11 @@
 Gem::Specification.new do |s|
-  s.name = 'logstash-input-gcs'
+  s.name = 'logstash-input-gcs-fork'
   s.version         = '2.0.10'
-  s.licenses = ['Apache License (2.0)']
+  s.licenses = ['Apache-2.0']
   s.summary = "This example input streams a string at a definable interval."
   s.description = "This gem is a logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/plugin install gemname. This gem is not a stand-alone program"
-  s.authors = ["Barak Cohen"]
-  s.email = 'barak@wondermall.com'
+  s.authors = ["Benedikt1992"]
+  s.email = 'mail@benedikt1992.de'
   s.homepage = "http://www.elastic.co/guide/en/logstash/current/index.html"
   s.require_paths = ["lib"]
 
@@ -18,9 +18,10 @@ Gem::Specification.new do |s|
   s.metadata = { "logstash_plugin" => "true", "logstash_group" => "input" }
 
   # Gem dependencies
-  s.add_runtime_dependency "logstash-core", ">= 2.0.0", "< 3.0.0"
+  s.add_runtime_dependency "logstash-core-plugin-api", "~> 2.0"
+  #s.add_runtime_dependency "logstash-core", ">= 2.0.0"
   s.add_runtime_dependency 'logstash-codec-plain'
-  s.add_runtime_dependency 'gcloud'
+  s.add_runtime_dependency 'google-cloud-storage'
   s.add_runtime_dependency 'stud', '>= 0.0.22'
   s.add_development_dependency 'logstash-devutils', '>= 0.0.16'
 end

@@ -1,3 +1,11 @@
+https://github.com/Benedikt1992/logstash-input-gcs
+https://www.elastic.co/guide/en/logstash/5.0/plugins-outputs-google_cloud_storage.html
+https://www.elastic.co/guide/en/logstash/current/_how_to_write_a_logstash_input_plugin.html
+https://github.com/logstash-plugins/logstash-input-s3/tree/master/lib/logstash/inputs
+
+https://github.com/GoogleCloudPlatform/google-cloud-ruby
+http://googlecloudplatform.github.io/google-cloud-ruby/#/docs/google-cloud-storage/v1.9.0/google/cloud/storage
+
 # Logstash Plugin
 
 [![Build
@@ -87,3 +95,6 @@ Programming is not a required skill. Whatever you've seen about open source and 
 It is more important to the community that you are able to contribute.
 
 For more information about contributing, see the [CONTRIBUTING](https://github.com/elastic/logstash/blob/master/CONTRIBUTING.md) file.
+
+## Credits
+This repository is a fork of https://github.com/Wondermall/logstash-input-gcs
