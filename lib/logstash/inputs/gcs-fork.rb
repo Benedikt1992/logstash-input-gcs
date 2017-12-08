@@ -1,4 +1,12 @@
 # encoding: utf-8
+require "logstash/inputs/base"
+require "logstash/namespace"
+require "stud/interval"
+#require "socket" # for Socket.gethostname
+require "time"
+require "tmpdir"
+require "stud/temporary"
+
 require 'google/cloud/storage'
 
 require 'faraday'
@@ -12,27 +20,27 @@ module Faraday
   end
 end
 
-require "logstash/inputs/base"
-require "logstash/namespace"
-require "time"
-require "tmpdir"
-require "stud/interval"
-require "stud/temporary"
-
-# Stream events from files from a S3 bucket.
+# Stream events from files from a GCS bucket.
 #
 # Each line from each file generates an event.
 # Files ending in `.gz` are handled as gzip'ed files.
-class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
-  config_name "gcs-fork"
 
+class LogStash::Inputs::Gcsfork < LogStash::Inputs::Base
+  config_name "gcsfork"
+
+  # If undefined, Logstash will complain, even if codec is unused.
   default :codec, "plain"
 
-  config :project
+  # todo: try to read project out of keyfile
+  # The name of GCS project. Can be part of keyfile.
+  config :project, :validate => :string, :default => nil
+
+  # The message string to use in the event.
+  config :message, :validate => :string, :default => "Hello World3"
 
   # Path to JSON file containing the Service Account credentials (not needed when running inside GCE)
   config :keyfile
-
+ 
   # The name of the GCS bucket.
   config :bucket, :validate => :string, :required => true
 
@@ -76,11 +84,12 @@ class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
     require "digest/md5"
 
     @logger.info("Registering GCS input", :bucket => @bucket, :project => @project, :keyfile => @keyfile)
-
+    @logger.info("Trying to register storage object", :project => @project, :keyfile => @keyfile)
     @gcs = Google::Cloud::Storage.new(
       project_id: @project,
       credentials: @keyfile
     )
+    @logger.info("registered storage object.", :project => @project, :keyfile => @keyfile)
     @gcsbucket = @gcs.bucket @bucket
 
     unless @backup_to_bucket.nil?
@@ -97,7 +106,6 @@ class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
     FileUtils.mkdir_p(@temporary_directory) unless Dir.exist?(@temporary_directory)
   end # def register
 
-  public
   def run(queue)
     @current_thread = Thread.current
     Stud.interval(@interval, sleep_then_run: false) do
@@ -105,7 +113,13 @@ class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
     end
   end # def run
 
-  public
+  def stop
+    # @current_thread is initialized in the `#run` method,
+    # this variable is needed because the `#stop` is a called in another thread
+    # than the `#run` method and requiring us to call stop! with a explicit thread.
+    Stud.stop!(@current_thread)
+  end
+
   def list_new_files
     @logger.debug("GCS input: Polling")
 
@@ -123,7 +137,6 @@ class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
     return objects.keys.sort {|a,b| objects[a] <=> objects[b]}
   end # def fetch_new_files
 
-  public
   def backup_to_bucket(object, key)
     # TODO (barak)
     unless @backup_to_bucket.nil?
@@ -136,14 +149,12 @@ class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
     end
   end
 
-  public
   def backup_to_dir(filename)
     unless @backup_to_dir.nil?
       FileUtils.cp(filename, @backup_to_dir)
     end
   end
 
-  public
   def process_files(queue)
     objects = list_new_files
 
@@ -157,16 +168,8 @@ class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
     end
   end # def process_files
 
-  public
-  def stop
-    # @current_thread is initialized in the `#run` method,
-    # this variable is needed because the `#stop` is a called in another thread
-    # than the `#run` method and requiring us to call stop! with a explicit thread.
-    Stud.stop!(@current_thread)
-  end
 
-  private
-
+  private 
   # Read the content of the local file
   #
   # @param [Queue] Where to push the event
@@ -194,7 +197,6 @@ class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
     return true
   end # def process_local_log
 
-  private
   def read_file(filename, &block)
     if gzip?(filename)
       read_gzip_file(filename, block)
@@ -209,7 +211,6 @@ class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
     end
   end
 
-  private
   def read_gzip_file(filename, block)
     begin
       Zlib::GzipReader.open(filename) do |decoder|
@@ -221,29 +222,25 @@ class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
     end
   end
 
-  private
   def gzip?(filename)
     filename.end_with?('.gz')
   end
 
-  private
   def sincedb
     @sincedb ||= if @sincedb_path.nil?
-                   @logger.info("Using default generated file for the sincedb", :filename => sincedb_file)
-                   SinceDB::File.new(sincedb_file)
-                 else
-                   @logger.info("Using the provided sincedb_path",
+                    @logger.info("Using default generated file for the sincedb", :filename => sincedb_file)
+                    SinceDB::File.new(sincedb_file)
+                  else
+                    @logger.info("Using the provided sincedb_path",
                                 :sincedb_path => @sincedb_path)
-                   SinceDB::File.new(@sincedb_path)
-                 end
+                    SinceDB::File.new(@sincedb_path)
+                  end
   end
 
-  private
   def sincedb_file
     File.join(ENV["HOME"], ".sincedb_" + Digest::MD5.hexdigest("#{@bucket}+#{@prefix}"))
   end
 
-  private
   def ignore_filename?(filename)
     if @prefix == filename
       return true
@@ -258,7 +255,6 @@ class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
     end
   end
 
-  private
   def process_log(queue, key)
     object = @gcsbucket.file key
 
@@ -279,7 +275,6 @@ class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
     end
   end
 
-  private
   def delete_file_from_bucket(object)
     if @delete and @backup_to_bucket.nil?
       object.delete()
@@ -287,7 +282,6 @@ class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
   end
 
 
-  private
   module SinceDB
     class File
       def initialize(file)
@@ -314,4 +308,4 @@ class LogStash::Inputs::GCSFork < LogStash::Inputs::Base
       end
     end
   end
-end # class LogStash::Inputs::GCS
+end # class LogStash::Inputs::Gcsfork

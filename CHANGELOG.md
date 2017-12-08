@@ -1,3 +1,5 @@
+## 2.0.11 (work in progress)
+ - Update to actual versions of google api and logstash
 ## 2.0.4
  - Add encoding: utf-8 line to spec file.  This can prevent issues with tests.
 ## 2.0.1
